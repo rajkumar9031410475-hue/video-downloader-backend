@@ -8,33 +8,10 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Browser pe check karne ke liye ki update hua ya nahi
+// Browser pe check karne ke liye (Naya Message)
 app.get('/', (req, res) => {
-  res.send('<h1>✅ Server 100% Fixed! API Block Bypass Active!</h1>');
+  res.send('<h1>✅ Final Master Server is Live! Ab Koi Error Nahi Aayegi!</h1>');
 });
-
-// JSON mein se video link dhoondhne ka Jadoo (Auto-Logic)
-function findVideoUrl(obj) {
-    let bestUrl = null;
-    function search(o) {
-        if (typeof o === 'string' && o.startsWith('http')) {
-            if (!o.includes('.jpg') && !o.includes('.png') && !o.includes('.webp') && !o.includes('profile_pic')) {
-                bestUrl = o; 
-                return true;
-            }
-        }
-        if (typeof o === 'object' && o !== null) {
-            if (o.hd && typeof o.hd === 'string' && o.hd.startsWith('http') && !o.hd.includes('.jpg')) { bestUrl = o.hd; return true; }
-            if (o.url && typeof o.url === 'string' && o.url.startsWith('http') && !o.url.includes('.jpg')) { bestUrl = o.url; return true; }
-            for (let k in o) {
-                if (search(o[k])) return true;
-            }
-        }
-        return false;
-    }
-    search(obj);
-    return bestUrl;
-}
 
 app.post('/api/download', async (req, res) => {
   try {
@@ -42,59 +19,67 @@ app.post('/api/download', async (req, res) => {
     if (!url) return res.status(400).json({ error: 'URL is required' });
 
     let finalVideoUrl = null;
+    let title = '✅ Video is Ready!';
+    
+    // Top 4 Premium Bypass Servers (100% Free)
+    const instances =[
+        { api: 'https://api.cobalt.tools/api/json', domain: 'https://cobalt.tools' },
+        { api: 'https://cobalt-api.kwiatekmateusz.pl/api/json', domain: 'https://cobalt.kwiatekmateusz.pl' },
+        { api: 'https://api.cobalt.my.id/api/json', domain: 'https://cobalt.my.id' },
+        { api: 'https://co.wukko.me/api/json', domain: 'https://co.wukko.me' }
+    ];
 
-    const isYT = url.includes('youtu');
-    const isIG = url.includes('instagram');
-    const isFB = url.includes('facebook') || url.includes('fb.watch');
-
-    // 🚀 METHOD 1: PRIMARY BYPASS API
-    try {
-        let apiUrl = '';
-        if (isYT) apiUrl = `https://api.ryzendesu.vip/api/downloader/ytmp4?url=${encodeURIComponent(url)}`;
-        else if (isIG) apiUrl = `https://api.ryzendesu.vip/api/downloader/igdl?url=${encodeURIComponent(url)}`;
-        else if (isFB) apiUrl = `https://api.ryzendesu.vip/api/downloader/fbdl?url=${encodeURIComponent(url)}`;
-        
-        if(apiUrl) {
-            const { data } = await axios.get(apiUrl);
-            finalVideoUrl = findVideoUrl(data);
-        }
-    } catch (e) { console.log('Method 1 Fail'); }
-
-    // 🚀 METHOD 2: SECONDARY BYPASS API (Backup)
-    if (!finalVideoUrl) {
+    // Loop chalega - Agar ek fail toh dusra auto-try karega
+    for (let inst of instances) {
         try {
-            let apiUrl = '';
-            if (isYT) apiUrl = `https://bk9.fun/download/ytmp4?url=${encodeURIComponent(url)}`;
-            else if (isIG) apiUrl = `https://bk9.fun/download/ig?url=${encodeURIComponent(url)}`;
-            else if (isFB) apiUrl = `https://bk9.fun/download/fb?url=${encodeURIComponent(url)}`;
-            
-            if(apiUrl) {
-                const { data } = await axios.get(apiUrl);
-                finalVideoUrl = findVideoUrl(data);
-            }
-        } catch (e) { console.log('Method 2 Fail'); }
-    }
-
-    // 🚀 METHOD 3: COBALT PUBLIC INSTANCE (Final Backup)
-    if (!finalVideoUrl) {
-        try {
-            const cobaltRes = await axios.post('https://cobalt-api.kwiatekmateusz.pl/', { url: url }, {
-                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' }
+            const response = await axios.post(inst.api, { url: url }, {
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'Origin': inst.domain,
+                    'Referer': inst.domain + '/',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                },
+                timeout: 10000 // 10 second wait karega ek server par
             });
-            finalVideoUrl = findVideoUrl(cobaltRes.data);
-        } catch (e) { console.log('Method 3 Fail'); }
+
+            const data = response.data;
+            if (data && data.url) {
+                finalVideoUrl = data.url;
+                break; // Link mil gaya, loop band karo!
+            } else if (data && data.picker && data.picker.length > 0) {
+                finalVideoUrl = data.picker[0].url; // Instagram multiple videos ke liye
+                break;
+            }
+        } catch (err) {
+            console.log(`Failed at: ${inst.api}`);
+            continue; // Fail hua toh agle par jao (Crash nahi hoga)
+        }
     }
 
-    // FINAL OUTPUT
+    // Ek aur Final Backup API (Agar upar ke 4 fail ho jayein)
+    if (!finalVideoUrl) {
+        try {
+            const backup = await axios.get(`https://api.vkrdownloader.vercel.app/server?vkr=${encodeURIComponent(url)}`);
+            if (backup.data && backup.data.data && backup.data.data.downloads && backup.data.data.downloads.length > 0) {
+                finalVideoUrl = backup.data.data.downloads[0].url;
+                title = backup.data.data.title || title;
+            }
+        } catch (e) {
+            console.log('Backup API also failed');
+        }
+    }
+
+    // FINAL OUTPUT TO APP
     if (finalVideoUrl) {
         return res.json({
             success: true,
-            title: '✅ Video is Ready!',
+            title: title,
             thumbnail: 'https://cdn-icons-png.flaticon.com/512/2985/2985678.png',
-            formats: [{ quality: 'Download HD Video', url: finalVideoUrl, format: 'mp4' }]
+            formats:[{ quality: 'Download HD Video', url: finalVideoUrl, format: 'mp4' }]
         });
     } else {
-        throw new Error("Link Private hai ya saare bypass server block ho gaye. Dusra link try karein.");
+        return res.status(500).json({ error: 'Saare Servers Busy hain. Kripya 2 minute baad try karein!' });
     }
 
   } catch (error) {
